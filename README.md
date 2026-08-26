@@ -1,5 +1,8 @@
 # SphBLA-M: Spherical Biconvex Lens Attention with Magnitude Awareness
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22117420.svg)](https://doi.org/10.5281/zenodo.22117420)
+
 > **Addressing the Cone-Widening Problem in Transformer Attention**
 
 **Status:** Synthetic geometry results are strong and fully verified (10/10 checks
@@ -162,5 +165,6 @@ sphbla-m/
   author  = {Kushagra Yadav},
   year    = {2026},
   url     = {https://github.com/your-username/sphbla-m}
+
 }
 ```
