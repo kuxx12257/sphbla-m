@@ -156,7 +156,7 @@ sphbla-m/
 ## Citation
 
 ```bibtex
-@article{yourname2026sphblam,
+@article{kushagra yadav 2026sphblam,
   title   = {Spherical Biconvex Lens Attention with Magnitude Awareness:
              Addressing the Cone-Widening Problem in Transformer Attention},
   author  = {Kushagra Yadav},
