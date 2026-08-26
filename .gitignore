@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+# Cached datasets and checkpoints regenerate locally via build_*.py scripts
+# (fixed random seeds mean regeneration is exact/reproducible).
+# benchmark/results/*.json are committed -- those are the final verified
+# numbers referenced in the paper, kept as small human-readable files.
+benchmark/*.pt
+benchmark/*.json
