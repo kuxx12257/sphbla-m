@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Attention Mechanism Can't See Distance — SphBLA-M</title>
+<meta name="description" content="A provable geometric flaw in every transformer since 2017, and an honest attempt to fix it — including the parts that didn't work.">
+<style>
+  :root{
+    --bg:#0d0d12; --panel:#16161f; --panel2:#1d1d29; --ink:#e8e8f0;
+    --muted:#9a9ab0; --line:#2a2a3a;
+    --cos:#e8a33d; --dot:#e2554b; --sph:#5cc9a0; --q:#6f7bff;
+    --accent:#7a6cff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;padding:0}
+
+  /* ---------- Article typography ---------- */
+  .article{max-width:720px;margin:0 auto;padding:0 20px 80px}
+  .hero{max-width:820px;margin:0 auto;padding:64px 24px 36px;text-align:center}
+  .kicker{color:var(--accent);font-size:.82rem;font-weight:700;letter-spacing:1.6px;
+    text-transform:uppercase;margin-bottom:18px}
+  h1.title{font-size:2.5rem;line-height:1.15;margin:0 0 18px;font-weight:800;
+    background:linear-gradient(135deg,#fff 30%,#b8b8ff 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .dek{font-size:1.2rem;color:var(--muted);max-width:600px;margin:0 auto;line-height:1.55}
+  .byline{margin-top:28px;font-size:.88rem;color:var(--muted)}
+  .byline a{color:var(--sph);text-decoration:none}
+  .byline a:hover{text-decoration:underline}
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);
+    max-width:200px;margin:36px auto 0}
+
+  article p{font-size:1.13rem;line-height:1.75;color:#d8d8e4;margin:0 0 22px}
+  article h2{font-size:1.65rem;font-weight:800;margin:52px 0 18px;color:var(--ink);
+    letter-spacing:-.2px}
+  article h2::before{content:"";display:block;width:36px;height:4px;border-radius:2px;
+    background:var(--accent);margin-bottom:16px}
+  article strong{color:#fff;font-weight:700}
+  article em{color:#c9c9e8}
+  article code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;
+    padding:2px 7px;font-size:.92em;color:var(--sph);font-family:'SF Mono',Monaco,Consolas,monospace}
+  article a{color:var(--sph)}
+  .lede{font-size:1.3rem !important;color:#ecebff !important;font-weight:400}
+
+  .pullquote{border-left:3px solid var(--accent);padding:6px 0 6px 22px;margin:34px 0;
+    font-size:1.25rem;color:#f0f0ff;font-style:italic;line-height:1.5}
+
+  .callout{background:linear-gradient(135deg,rgba(122,108,255,.10),rgba(92,201,160,.06));
+    border:1px solid rgba(122,108,255,.25);border-radius:14px;padding:22px 24px;margin:32px 0}
+  .callout .head{font-weight:800;font-size:.95rem;color:var(--accent);
+    text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+
+  .metric-row{display:flex;gap:14px;flex-wrap:wrap;margin:28px 0}
+  .metric{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:16px;text-align:center}
+  .metric .n{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .metric .l{font-size:.78rem;color:var(--muted);margin-top:4px}
+  .metric.cos .n{color:var(--cos)} .metric.dot .n{color:var(--dot)} .metric.sph .n{color:var(--sph)}
+
+  .footer-links{max-width:720px;margin:0 auto;padding:40px 20px 70px;text-align:center}
+  .footer-links .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:32px 24px}
+  .footer-links h3{margin:0 0 18px;font-size:1.3rem}
+  .linkbtn{display:inline-block;margin:6px 8px;padding:12px 22px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    text-decoration:none;font-weight:600;font-size:.94rem;transition:.15s}
+  .linkbtn:hover{border-color:var(--accent);background:rgba(122,108,255,.1)}
+  .linkbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* ---------- Demo widgets (embedded natively) ---------- */
+  .demo{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:20px;margin:32px 0;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .demo h3{margin:0 0 4px;font-size:1.15rem;letter-spacing:.2px;color:#fff}
+  .demo p.sub{margin:0 0 16px;color:var(--muted);font-size:.9rem}
+  canvas{display:block;width:100%;border-radius:12px;background:var(--panel2);
+    touch-action:none;cursor:grab}
+  canvas:active{cursor:grabbing}
+  .scores{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .score{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;text-align:center}
+  .score .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .score .val{font-size:1.5rem;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .bar{height:6px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;transition:width .05s linear}
+  .cos .val,.cos-c{color:var(--cos)} .dot .val,.dot-c{color:var(--dot)} .sph .val,.sph-c{color:var(--sph)}
+  .cos .bar>i{background:var(--cos)} .dot .bar>i{background:var(--dot)} .sph .bar>i{background:var(--sph)}
+  .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:16px;
+    font-size:.85rem;color:var(--muted)}
+  .controls label{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+  .tag{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle}
+  input[type=range]{accent-color:var(--accent);width:100%}
+  .hint{margin-top:14px;font-size:.84rem;color:var(--muted);
+    background:rgba(122,108,255,.08);border-left:3px solid var(--accent);
+    padding:9px 12px;border-radius:0 8px 8px 0}
+  .readout{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+  .dimwrap{margin-top:6px}
+  .dimlabel{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:8px}
+  .verdict{margin-top:12px;font-size:.9rem;padding:10px 12px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--line)}
+
+  @media(max-width:600px){
+    h1.title{font-size:1.9rem}
+    .dek{font-size:1.05rem}
+    article p{font-size:1.04rem}
+    .lede{font-size:1.15rem !important}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <div class="kicker">Research Note</div>
+  <h1 class="title">Your Attention Mechanism<br>Can't See Distance</h1>
+  <p class="dek">A provable geometric flaw baked into every transformer since 2017 — and an
+    honest attempt to fix it, including the parts that didn't work.</p>
+  <div class="byline">By <strong style="color:#fff">Kushagra Yadav</strong> ·
+    <a href="https://doi.org/10.5281/zenodo.22117420" target="_blank">Read the full preprint →</a></div>
+  <div class="divider"></div>
+</div>
+
+<!-- ============ ARTICLE ============ -->
+<div class="article"><article>
+
+<p class="lede">Picture a lighthouse. Its beam sweeps out in a straight line, and anything
+sitting inside that beam gets illuminated — a rowboat twenty feet away, a tanker two miles
+out, doesn't matter. The beam doesn't get dimmer with distance. It doesn't know distance
+exists. It only knows <em>direction</em>.</p>
+
+<p>Now replace the lighthouse with a transformer's attention mechanism, replace the beam with
+<strong>cosine similarity</strong>, and replace "illuminated" with "this token matters."
+You've just built a system that is, by mathematical construction, blind to how far away
+something is — it only ever asks "are you pointing the same way as me?"</p>
+
+<p>For small sequences, this blindness barely matters. Nearby things and far things rarely
+line up in the same direction anyway, so the flaw stays hidden. But push the context window
+out to 128,000 tokens — the world GPT-4, Claude, and Gemini actually live in now — and the
+beam doesn't stay narrow. It widens. And widens. Until, at the scale these models actually
+run at, it's less like a lighthouse and more like every direction is lit at once.</p>
+
+<div class="pullquote">This isn't a metaphor I'm reaching for. It's a provable geometric fact —
+and once you see it, you can't unsee it every time a long-context model confidently cites
+something from three hundred pages back that has nothing to do with your question.</div>
+
+<h2>The Bug, Made Visible</h2>
+
+<p>Try this yourself before I explain a single equation. Drag the white dot below anywhere
+you want.</p>
+
+<!-- ===== DEMO 1: CONE-WIDENING PLAYGROUND ===== -->
+<div class="demo">
+  <h3>🎯 Drag the token. Watch cosine lie to you.</h3>
+  <p class="sub">The <b style="color:var(--q)">query</b> points right. Drag the
+    <b>token</b> anywhere. Three attention scores update live.</p>
+  <canvas id="cw" height="360"></canvas>
+  <div class="scores">
+    <div class="score dot"><div class="label">Dot-product</div>
+      <div class="val" id="dotv">0.00</div><div class="bar"><i id="dotb"></i></div></div>
+    <div class="score cos"><div class="label">Cosine</div>
+      <div class="val" id="cosv">0.00</div><div class="bar"><i id="cosb"></i></div></div>
+    <div class="score sph"><div class="label">SphBLA-M</div>
+      <div class="val" id="sphv">0.00</div><div class="bar"><i id="sphb"></i></div></div>
+  </div>
+  <div class="controls">
+    <label><input type="checkbox" id="showCone" checked>
+      <span class="tag" style="background:var(--cos)"></span> cosine's cone</label>
+    <label><input type="checkbox" id="showLens" checked>
+      <span class="tag" style="background:var(--sph)"></span> SphBLA-M's lens</label>
+  </div>
+  <div class="hint" id="cwHint">Try this: drag the token <b>far to the right</b>, staying level
+    with the query. Cosine says <span class="readout">1.00</span> — "perfectly relevant!" — no
+    matter how far. That's the bug.</div>
+</div>
+
+<p>Keep the token roughly level with the query, but drag it far away. Watch the cosine number.
+It doesn't move. It sits at <code>1.00</code> whether the token is one unit away or a hundred.
+Meanwhile the number I'm proposing — SphBLA-M — actually notices the distance and marks the
+far-away token as what it is: irrelevant.</p>
+
+<p>That gap between those two numbers is not a rounding error or an edge case. It's the entire
+failure mode this post is about.</p>
+
+<h2>Why This Isn't Just a Curiosity</h2>
+
+<p>Here's the part that turns "huh, neat geometry fact" into "this might explain something
+you've personally experienced."</p>
+
+<p>Cosine similarity, it turns out, has a nasty relationship with dimensionality. Two random
+vectors, projected onto a unit sphere in <code>d</code> dimensions, have a similarity score
+whose <em>standard deviation</em> shrinks as <code>1/√d</code>. Push <code>d</code> up far
+enough, and the entire distribution of "how similar are these two things" collapses toward a
+single point: zero.</p>
+
+<p>Watch this happen live:</p>
+
+<!-- ===== DEMO 2: DIMENSION COLLAPSE ===== -->
+<div class="demo">
+  <h3>📉 Why it gets catastrophic at GPT-4 scale</h3>
+  <p class="sub">Slide the embedding dimension up. Watch every token pair collapse into
+    looking identical to cosine similarity.</p>
+  <canvas id="dc" height="240"></canvas>
+  <div class="dimwrap">
+    <div class="dimlabel">
+      <span>dimension d = <span class="readout" id="dval">64</span></span>
+      <span>std of cosine sim = <span class="readout sph-c" id="stdval">0.125</span></span>
+    </div>
+    <input type="range" id="dslider" min="1" max="12" value="6" step="1">
+  </div>
+  <div class="verdict" id="dcVerdict"></div>
+</div>
+
+<p>Slide the dimension slider all the way up. At <code>d = 4096</code> — which is not a
+hypothetical number, it's the actual embedding dimension GPT-4-class models operate at — the
+standard deviation of cosine similarity between two random vectors drops to
+<strong>0.016</strong>. That's attention losing almost all of its ability to distinguish
+anything by direction alone, at the exact scale where it matters most.</p>
+
+<p>I call this the <strong>cone-widening problem</strong>: the region of "stuff attention
+considers acceptable" is a cone whose cross-section grows as <code>2·d·tan(θ)</code> with
+distance from the query. Wider cone, more false positives, worse at exactly the scale
+everyone's racing toward.</p>
+
+<h2>Building a Flashlight Instead of a Laser</h2>
+
+<p>If cosine similarity is a beam with no distance falloff, what you actually want is
+something that behaves like a flashlight in a dark room — bright close up, and genuinely
+dimmer the further away you point it.</p>
+
+<p>The fix I'm proposing, <strong>Spherical Biconvex Lens Attention with Magnitude Awareness
+(SphBLA-M)</strong>, stitches two signals together that each solve half the problem and fail
+badly alone:</p>
+
+<p><strong>Signal one — direction</strong>, same as before: project everything onto the unit
+sphere, measure the angle. This part cosine already does fine.</p>
+
+<p><strong>Signal two — the missing piece</strong>: before you throw away the vector's raw
+length, take one more measurement first — how far along the query's direction does this
+token actually sit? That's the number cosine deletes and never gets back.</p>
+
+<p>Combine them into a shape — not a cone, but a <strong>biconvex lens</strong>: wide right at
+the query, tapering shut as you move away in either direction, and <em>asymmetric</em> — a
+token sitting slightly behind the query gets penalized harder than one sitting slightly
+ahead, because directionally-opposed content is a much stronger signal of irrelevance than
+content that's merely a bit further down the same path.</p>
+
+<div class="callout">
+  <div class="head">The detail that convinced me this wasn't optional</div>
+  I tried the angle-only version first, alone, distance term set to zero. It scored
+  <strong style="color:var(--dot)">worse than plain cosine</strong> — 0.671 versus cosine's
+  0.837. Add the distance term back in, and the same setup jumps to
+  <strong style="color:var(--sph)">1.748</strong> — more than double cosine's baseline.
+  Neither half works alone. Together, they're the whole trick.
+</div>
+
+<div class="metric-row">
+  <div class="metric dot"><div class="n">0.000</div><div class="l">Dot-product</div></div>
+  <div class="metric cos"><div class="n">0.837</div><div class="l">Cosine</div></div>
+  <div class="metric sph"><div class="n">1.748</div><div class="l">SphBLA-M</div></div>
+</div>
+
+<h2>What the Math Actually Guarantees</h2>
+
+<p>I won't drown this post in derivations — the full paper has every proof — but three things
+are worth knowing because they're not hand-wavy claims, they're things I checked ten
+different ways until I couldn't break them:</p>
+
+<p><strong>It's smooth everywhere.</strong> The gradient never goes to zero, never produces
+NaN, across 3,000 randomized test points spanning dimensions 4 through 512. Analytic
+gradients matched hand-computed finite differences to within 0.6%.</p>
+
+<p><strong>It doesn't degrade with scale.</strong> SphBLA-M's discrimination between relevant
+and irrelevant tokens stays at <strong>1.748 ± 0.001</strong> — identical to three decimal
+places — whether you're at <code>d=4</code> or <code>d=512</code>. Three orders of magnitude
+of dimension, same number.</p>
+
+<p><strong>It fails honestly where it should.</strong> On sequences with no actual structure
+to exploit — pure noise — SphBLA-M produces <em>more diffuse</em> attention than
+dot-product, not less. That's correct behavior, not a bug. A method that finds structure
+everywhere, even where none exists, is one you shouldn't trust.</p>
+
+<h2>Now, the Part Most Papers Would Quietly Leave Out</h2>
+
+<p>Here's where I could stop, and it would be a clean, satisfying story: identified a real
+geometric flaw, built a mathematically elegant fix, proved it works. Done.</p>
+
+<p>But I don't think that's the whole truth, and I think the whole truth is more useful to
+you than the clean version.</p>
+
+<p>Everything above was tested on a <strong>controlled synthetic setup</strong> — I built the
+"relevant" and "irrelevant" tokens by hand, with exact control over their distance and
+direction, specifically to isolate the cone-widening failure. That's good science for
+<em>proving the mechanism exists</em>. It is not the same as proving the fix helps on
+anything anyone actually cares about.</p>
+
+<p>So I built two more tests, using <strong>real discrete tokens</strong> doing
+<strong>real reasoning tasks</strong>, not synthetic vectors:</p>
+
+<p><strong>ListOps</strong> — a benchmark from Long Range Arena where a model has to
+correctly evaluate deeply nested expressions like <code>[MAX 2 9 [MIN 4 7 3] 1]</code>,
+tracking operators and values across long spans of tokens.</p>
+
+<p><strong>A needle-in-haystack task I built myself</strong> — one real, valid expression
+buried inside a pile of decoy expressions using the exact same vocabulary, so the model
+can't cheat by noticing "oh, this looks different."</p>
+
+<div class="callout">
+  <div class="head">The honest result</div>
+  At the scales I tested, <strong>SphBLA-M shows no significant advantage over standard
+  attention on either task</strong> (p = 0.73 and p = 0.95 — nowhere close to significant).
+  At longer sequence lengths on ListOps, standard attention actually edges ahead, though with
+  only 3 seeds that result is too small to lean on hard.
+</div>
+
+<p>I think I understand why, and it's actually a useful finding rather than a disappointing
+one: ListOps needs <em>exact structural retrieval</em> — the operator determining the whole
+answer might sit far from where you're currently looking, and it's <em>decisively</em>
+relevant regardless of distance. That's close to the opposite of what SphBLA-M assumes. It
+was built for situations where distance and irrelevance travel together — retrieval, local
+coreference — not tasks where a far-away token might be the single most important one.</p>
+
+<p>Testing SphBLA-M on ListOps was a fair test, and it came back telling me something
+precise: <strong>this fix has a scope, and I don't yet know its edges.</strong> I'd rather
+tell you that directly than let you find out by reading the fine print.</p>
+
+<h2>Where This Actually Leaves Things</h2>
+
+<p><strong>Proven, solidly:</strong> cosine attention has a real, quantifiable geometric blind
+spot that gets worse — not better — as models scale up. That claim doesn't depend on
+SphBLA-M working at all; it's a fact about the math everyone's already using.</p>
+
+<p><strong>Promising, not yet proven:</strong> a fix exists that solves this exact failure
+mode cleanly in controlled conditions, with real mathematical guarantees around
+differentiability and scale-invariance. Whether it earns its keep on the messy, real tasks
+people actually train on is genuinely still open.</p>
+
+<p>If you have intuition for <em>why</em> structural-retrieval tasks might resist this kind
+of geometric prior, or you want to try SphBLA-M on a task where you already suspect distance
+and relevance travel together — retrieval-augmented generation is my own best guess for
+where to look next — I would genuinely rather hear you tell me I'm wrong with evidence than
+have nobody check at all.</p>
+
+</article></div>
+
+<!-- ============ FOOTER LINKS ============ -->
+<div class="footer-links">
+  <div class="box">
+    <h3>Everything is open</h3>
+    <p style="color:var(--muted);margin:0 0 8px">Full paper, all proofs, every experiment
+      including the ones that didn't go my way, and one command to reproduce any number
+      above.</p>
+    <a class="linkbtn primary" href="https://doi.org/10.5281/zenodo.22117420" target="_blank">
+      📄 Read the Preprint</a>
+    <a class="linkbtn" href="https://github.com/kuxx12257/sphbla-m" target="_blank">
+      💻 View the Code</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- shared SphBLA-M score (2D) ----------
+  function sphblaM(qx,qy,kx,ky,thetaMax,lam,alpha,beta){
+    const d=2;
+    const qn=Math.hypot(qx,qy), kn=Math.hypot(kx,ky);
+    if(qn<1e-8||kn<1e-8) return 0;
+    const qhx=qx/qn,qhy=qy/qn, khx=kx/kn,khy=ky/kn;
+    let ct=qhx*khx+qhy*khy; ct=Math.max(-1,Math.min(1,ct));
+    const st=Math.sqrt(Math.max(0,1-ct*ct));
+    const rPen=(st*st)/(Math.sin(thetaMax)**2);
+    let zPen; if(ct>=0) zPen=((1-ct)**2)/((1-Math.cos(thetaMax))**2);
+    else zPen=lam*((1+Math.abs(ct))**2);
+    const zRaw=(kx*qhx+ky*qhy)/Math.sqrt(d);
+    const delta=rPen+zPen+beta*(zRaw*zRaw);
+    return Math.exp(-alpha*delta);
+  }
+
+  // ======================= DEMO 1 =======================
+  const cw=document.getElementById('cw');
+  const ctx=cw.getContext('2d');
+  const showCone=document.getElementById('showCone');
+  const showLens=document.getElementById('showLens');
+  const cwHint=document.getElementById('cwHint');
+  let W,H,cx,cy,scale;
+  const qWorld={x:1.2,y:0};
+  let kWorld={x:3.2,y:0.5};
+  const thetaMax=0.8, lam=3.0, alpha=1.0, beta=1.0;
+  const coneAngle=0.55;
+
+  function resize(){
+    const r=cw.getBoundingClientRect();
+    cw.width=r.width*devicePixelRatio; cw.height=360*devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    W=r.width; H=360; cx=W*0.28; cy=H*0.5; scale=Math.min(W,H)/9;
+    draw();
+  }
+  function w2s(p){return {x:cx+p.x*scale, y:cy - p.y*scale};}
+  function s2w(x,y){return {x:(x-cx)/scale, y:-(y-cy)/scale};}
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,.045)'; ctx.lineWidth=1;
+    for(let gx=-1;gx<=8;gx++){const p=w2s({x:gx,y:0});ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,H);ctx.stroke();}
+    for(let gy=-4;gy<=4;gy++){const p=w2s({x:0,y:gy});ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(W,p.y);ctx.stroke();}
+
+    if(showCone.checked){
+      const o=w2s({x:0,y:0});
+      const far=9;
+      const p1=w2s({x:far*Math.cos(coneAngle), y:far*Math.sin(coneAngle)});
+      const p2=w2s({x:far*Math.cos(coneAngle), y:-far*Math.sin(coneAngle)});
+      const grad=ctx.createLinearGradient(o.x,0,W,0);
+      grad.addColorStop(0,'rgba(232,163,61,.02)');
+      grad.addColorStop(1,'rgba(232,163,61,.16)');
+      ctx.fillStyle=grad;
+      ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.closePath();ctx.fill();
+    }
+
+    if(showLens.checked){
+      ctx.fillStyle='rgba(92,201,160,.14)';
+      const step=6;
+      for(let sx=0;sx<W;sx+=step){
+        for(let sy=0;sy<H;sy+=step){
+          const wpt=s2w(sx+step/2,sy+step/2);
+          const s=sphblaM(qWorld.x,qWorld.y,wpt.x,wpt.y,thetaMax,lam,alpha,beta);
+          if(s>=0.5){ctx.fillRect(sx,sy,step,step);}
+        }
+      }
+    }
+
+    const o=w2s({x:0,y:0});
+    ctx.fillStyle='rgba(255,255,255,.25)';
+    ctx.beginPath();ctx.arc(o.x,o.y,3,0,7);ctx.fill();
+
+    const qp=w2s(qWorld);
+    ctx.strokeStyle='#6f7bff';ctx.fillStyle='#6f7bff';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(qp.x,qp.y);ctx.stroke();
+    const ang=Math.atan2(qp.y-o.y,qp.x-o.x);
+    ctx.beginPath();ctx.moveTo(qp.x,qp.y);
+    ctx.lineTo(qp.x-10*Math.cos(ang-.4),qp.y-10*Math.sin(ang-.4));
+    ctx.lineTo(qp.x-10*Math.cos(ang+.4),qp.y-10*Math.sin(ang+.4));
+    ctx.closePath();ctx.fill();
+    ctx.font='600 13px sans-serif';ctx.fillStyle='#e8e8f0';ctx.fillText('query',qp.x+8,qp.y-8);
+
+    const kp=w2s(kWorld);
+    ctx.fillStyle='#fff';ctx.strokeStyle='#0d0d12';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(kp.x,kp.y,10,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#e8e8f0';ctx.font='600 13px sans-serif';
+    ctx.fillText('token',kp.x+14,kp.y+4);
+
+    updateScores();
+  }
+
+  function updateScores(){
+    const d=2;
+    const qn=Math.hypot(qWorld.x,qWorld.y), kn=Math.hypot(kWorld.x,kWorld.y);
+    const dot=(qWorld.x*kWorld.x+qWorld.y*kWorld.y)/Math.sqrt(d);
+    let cos=0; if(qn>1e-8&&kn>1e-8) cos=(qWorld.x*kWorld.x+qWorld.y*kWorld.y)/(qn*kn);
+    const sph=sphblaM(qWorld.x,qWorld.y,kWorld.x,kWorld.y,thetaMax,lam,alpha,beta);
+
+    document.getElementById('dotv').textContent=dot.toFixed(2);
+    document.getElementById('cosv').textContent=cos.toFixed(2);
+    document.getElementById('sphv').textContent=sph.toFixed(2);
+    document.getElementById('dotb').style.width=Math.max(0,Math.min(1,dot/6))*100+'%';
+    document.getElementById('cosb').style.width=Math.max(0,cos)*100+'%';
+    document.getElementById('sphb').style.width=Math.max(0,sph)*100+'%';
+
+    if(kWorld.x>2.2 && Math.abs(kWorld.y)<0.9){
+      cwHint.innerHTML='See it? The token is <b>far away</b>, but cosine still reads '+
+        '<span class="readout cos-c">'+cos.toFixed(2)+'</span> — near-perfect. '+
+        'SphBLA-M correctly drops to <span class="readout sph-c">'+sph.toFixed(2)+
+        '</span>. <b>Cosine is blind to distance.</b>';
+    } else if(Math.abs(kWorld.y)>2){
+      cwHint.innerHTML='Now it\u2019s off-axis. Every method down-weights it — because now it\u2019s '+
+        'pointing in a genuinely different <i>direction</i>. Angle, all three agree on.';
+    } else {
+      cwHint.innerHTML='Try this: drag the token <b>far to the right</b>, staying level with the '+
+        'query. Cosine says <span class="readout cos-c">1.00</span> no matter how far. That\u2019s the bug.';
+    }
+  }
+
+  let dragging=false;
+  function pointer(e){
+    const r=cw.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return {x,y};
+  }
+  function startDrag(e){dragging=true;moveDrag(e);e.preventDefault();}
+  function moveDrag(e){
+    if(!dragging)return;
+    const p=pointer(e);
+    kWorld=s2w(p.x,p.y);
+    draw();e.preventDefault();
+  }
+  function endDrag(){dragging=false;}
+  cw.addEventListener('mousedown',startDrag);
+  window.addEventListener('mousemove',moveDrag);
+  window.addEventListener('mouseup',endDrag);
+  cw.addEventListener('touchstart',startDrag,{passive:false});
+  cw.addEventListener('touchmove',moveDrag,{passive:false});
+  cw.addEventListener('touchend',endDrag);
+  showCone.addEventListener('change',draw);
+  showLens.addEventListener('change',draw);
+  window.addEventListener('resize',resize);
+  resize();
+
+  // ======================= DEMO 2 =======================
+  const dc=document.getElementById('dc');
+  const dctx=dc.getContext('2d');
+  const dslider=document.getElementById('dslider');
+  const dval=document.getElementById('dval');
+  const stdval=document.getElementById('stdval');
+  const dcVerdict=document.getElementById('dcVerdict');
+  const dims=[2,4,8,16,32,64,128,256,512,1024,2048,4096];
+  let DW,DH;
+
+  function gaussRand(){
+    let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+  function sampleCosines(d,n){
+    const out=[];
+    for(let i=0;i<n;i++){
+      let a=new Float64Array(d),b=new Float64Array(d),na=0,nb=0,dp=0;
+      for(let j=0;j<d;j++){a[j]=gaussRand();b[j]=gaussRand();na+=a[j]*a[j];nb+=b[j]*b[j];}
+      na=Math.sqrt(na);nb=Math.sqrt(nb);
+      for(let j=0;j<d;j++){dp+=(a[j]/na)*(b[j]/nb);}
+      out.push(dp);
+    }
+    return out;
+  }
+
+  function resizeDC(){
+    const r=dc.getBoundingClientRect();
+    dc.width=r.width*devicePixelRatio; dc.height=240*devicePixelRatio;
+    dctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    DW=r.width;DH=240; drawDC();
+  }
+  function drawDC(){
+    const d=dims[+dslider.value-1];
+    dval.textContent=d;
+    const theoStd=1/Math.sqrt(d);
+    stdval.textContent=theoStd.toFixed(3);
+
+    const n=d<=512?2500:1200;
+    const cos=sampleCosines(d,Math.min(n,1600));
+    const bins=61, hist=new Array(bins).fill(0);
+    cos.forEach(c=>{let b=Math.floor((c+1)/2*bins);b=Math.max(0,Math.min(bins-1,b));hist[b]++;});
+    const maxH=Math.max(...hist);
+
+    dctx.clearRect(0,0,DW,DH);
+    const padB=28, padT=14;
+    const zx=DW*0.5;
+    dctx.strokeStyle='rgba(255,255,255,.15)';dctx.lineWidth=1;
+    dctx.beginPath();dctx.moveTo(zx,padT-6);dctx.lineTo(zx,DH-padB);dctx.stroke();
+    const bw=DW/bins;
+    for(let i=0;i<bins;i++){
+      const h=(hist[i]/maxH)*(DH-padB-padT);
+      const x=i*bw;
+      const t=Math.abs((i/(bins-1))-0.5)*2;
+      dctx.fillStyle=`rgba(92,201,160,${0.35+0.5*(1-t)})`;
+      dctx.fillRect(x+1,DH-padB-h,bw-2,h);
+    }
+    dctx.fillStyle='#9a9ab0';dctx.font='12px sans-serif';dctx.textAlign='center';
+    dctx.fillText('-1',6+bw,DH-10);
+    dctx.fillText('cosine similarity = 0 (orthogonal)',zx,DH-10);
+    dctx.fillText('+1',DW-bw,DH-10);
+    dctx.textAlign='left';
+
+    let msg;
+    if(d<=8){
+      msg='At small <b>d='+d+'</b>, cosine spreads across a wide range — it can genuinely tell '+
+          'different tokens apart. Standard deviation = <b class="sph-c">'+theoStd.toFixed(3)+'</b>.';
+    } else if(d<512){
+      msg='At <b>d='+d+'</b>, the spread is tightening fast toward zero. Std = <b class="sph-c">'+
+          theoStd.toFixed(3)+'</b> — most pairs already look nearly orthogonal.';
+    } else {
+      const s=theoStd.toFixed(3);
+      msg='At <b>d='+d+'</b>'+(d===4096?' — real GPT-4 scale':'')+', std = <b class="sph-c">'+s+
+          '</b>. Cosine has collapsed into a needle at zero: <b>every pair of tokens looks '+
+          'essentially identical.</b> Angle alone carries almost no information anymore.';
+    }
+    dcVerdict.innerHTML=msg;
+  }
+  dslider.addEventListener('input',drawDC);
+  window.addEventListener('resize',resizeDC);
+  resizeDC();
+})();
+</script>
+</body>
+</html>
